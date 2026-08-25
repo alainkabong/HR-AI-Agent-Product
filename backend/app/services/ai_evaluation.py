@@ -1,8 +1,10 @@
 import json
 from openai import OpenAI 
+from google import genai
 from app.core.config import settings
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+# client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 def build_evaluation_prompt(job_description: str, job_requirements: str, resume_text: str) -> str:
     return f"""
@@ -22,7 +24,7 @@ The JSON must follow this exact structure:
   "strengths": ["strength 1", "strength 2"],
   "weaknesses": ["weakness 1", "weakness 2"],
   "recommendation": "Clear recommendation for the recruiter."
- }}
+}}
 
 Rules:
 - score must be a number from 0 to 100.
@@ -30,6 +32,9 @@ Rules:
 - shortlist only if the candidate is reasonably suitable for the job.
 - be fair and professional.
 - do not invent experience that is not in the resume.
+- mention specific matching skills when explaining the decision.
+- if a reauired skill is missing from the resume, mention it as a weakness.
+- do not reject a candidate for missing skills that were not part of the job requirements.
 
 Job Description:
 {job_description}
@@ -47,7 +52,7 @@ def validate_ai_result(result: dict) -> dict:
         "score",
         "status",
         "reason",
-        "strenghts",
+        "strengths",
         "weaknesses",
         "recommendation"
     ]
@@ -76,28 +81,35 @@ def validate_ai_result(result: dict) -> dict:
 
 def evaluate_resume(job_description: str, job_requirements: str, resume_text: str) -> dict:
     prompt = build_evaluation_prompt(
-        job_descrition=job_description,
+        job_description=job_description,
         job_requirements=job_requirements,
         resume_text=resume_text
     )
     
     try:
-        response = client.chat.completions.create(
-            model="gpt_4o_mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a careful HR AI assistant that returns only valid JSON."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.2
+        # response = client.chat.completions.create(
+        #    model="gpt-4o-mini",
+        #    messages=[
+        #        {
+        #            "role": "system",
+        #            "content": "You are a careful HR AI assistant that returns only valid JSON."
+        #        },
+        #        {
+        #            "role": "user",
+        #            "content": prompt
+        #        }
+        #    ],
+        #    temperature=0.2
+        #)
+        
+        response = client.models.generate_content(
+            model="gemini-3.5-flash",
+            contents=prompt 
         )
         
-        content = response.choices[0].message.content
+        # content = response.choices[0].message.content
+        
+        content = response.text
         result = json.loads(content)
         
         return validate_ai_result(result=result)

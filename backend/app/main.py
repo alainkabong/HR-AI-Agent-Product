@@ -1,6 +1,8 @@
-from core.config import settings
+from fastapi import FastAPI
+from app.routes import job_routes, apply_routes
 
-print(settings.APP_NAME)
-print(settings.APP_ENV)
-print(settings.DATABASE_URL)
-print(settings.AI_PROVIDER)
+app = FastAPI(title="HR AI Agent Backend")
+
+app.include_router(job_routes.router)
+app.include_router(apply_routes.router)
+
